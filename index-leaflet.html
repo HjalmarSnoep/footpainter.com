@@ -1,0 +1,202 @@
+<!doctype html>
+<html>
+  <head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.0/dist/leaflet.css"
+   integrity="sha384-kxXhFDZB0L84bBV/apPOb8zGC+fsQ1dBPpKXPUXc1zRymi4BaueVyC27iDDPdssp"
+   crossorigin=""/>
+   <!-- Make sure you put this AFTER Leaflet's CSS -->
+ <script src="https://unpkg.com/leaflet@1.9.0/dist/leaflet.js"
+   integrity="sha384-JZO8CJyT9g8yj13j0R/ssKw7jx+QYlck09EBe8l/UxI6bE8JDmTF/VbHAIQYXDTD"
+   crossorigin=""></script>
+    <style>
+      input,label{
+        height: 50px;
+        vertical-align: top;
+      }
+      #lib{
+        display: none;
+      }
+      label{
+        padding-left: 15px;
+      }
+      hr{
+        display: inline-block;
+        width: 1px;
+        height: 50px;
+        margin: 0;
+        padding:0;
+        vertical-align: top;
+        
+      }
+      #view, #map{
+        height: calc(100% - 100px);
+        width: 100%;
+        position: fixed;
+        top:50px;
+        left:0;
+      }
+      #view{
+         pointer-events: none;
+         user-select: none;
+      }
+      button{
+        width:50px;
+        height: 50px;
+        padding:0;
+        margin:0;
+        vertical-align: top;
+      }
+      #menu{
+        position: fixed;
+        width: 100%;
+        height: 50px;
+        top:0;
+        left:0;
+        background: #000;
+        color: #fff;
+        margin:0;
+        line-height: 50px;
+        font-size: 40px;
+        padding: 0;
+        text-align: center;
+      }
+      #controls
+      {
+        position: fixed;
+        width: 100%;
+        height: 50px;
+        bottom:0;
+        left:0;
+        background: #000;
+        color: silver;
+        line-height: 50px;
+        vertical-align: center;
+      }
+    </style>
+  </head>
+<body>
+  <div id="menu">
+    <button style="float: left;">erase</button>
+    🦶 Footpainter
+    <button style="float: right;">save</button>
+  </div>
+  <div id="map"></div>
+<!--  <canvas id="view"></canvas> -->
+  <div id="controls">
+    <label> Foot:</label>
+    <button id="paint">UP</button>
+    <canvas id="showSize" width="50" height="50"></canvas>
+    <input id="color" type="color" />
+    <input id="size" type="range" min="1" max="25" step="1"/>
+    <hr><label> Sensitivity:</label>
+    <input id="acc" type="range" min="1" max="22" value="22" step="1"/><label id="acc-value">22</label>
+    <label id="error"></label>
+  </div>
+  <div id="lib">
+    <img id="foot" width="145" height="307" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='145' height='307' viewBox='0 0 145 309'%3E%3Cg transform='translate(-350,-150)'%3E%3Cellipse cx='371' cy='184' rx='22' ry='32'/%3E%3Cellipse cx='410' cy='192' rx='14' ry='17'/%3E%3Cellipse cx='440' cy='200' rx='12' ry='14'/%3E%3Cellipse cx='465' cy='215' rx='11' ry='12'/%3E%3Cellipse cx='485' cy='235' rx='8' ry='10'/%3E%3Cpath d='M421,221 c-100,0 -50,50 -40,70 c20,30 20,20 20,50 c-20,20 -20,75 10,100 c19,10 30,10 50,0 C495,391 472,312 487,290 C487,280 490,270 486,262 C486,262 443,221 423,221 z'/%3E%3C/g%3E%3C/svg%3E" />
+  </div>
+<script>
+
+//52.2223173 Longitude: 5.9792407
+//https://leafletjs.com/examples/quick-start/
+var map = L.map('map').fitWorld();
+L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 19,
+    attribution: '© OpenStreetMap'
+}).addTo(map);
+
+
+
+var lines=[];
+var foot={down: false, x:0,y:0,marker: L.marker([51.5, -0.09]).addTo(map)};
+var hex="0123456789ABCDEF";
+document.getElementById("color");
+var colorinput=document.getElementById("color");
+colorinput.value="#"+hex.charAt(Math.floor(Math.random()*16))+hex.charAt(Math.floor(Math.random()*16))+hex.charAt(Math.floor(Math.random()*16))+hex.charAt(Math.floor(Math.random()*16))+hex.charAt(Math.floor(Math.random()*16))+hex.charAt(Math.floor(Math.random()*16));
+colorinput.addEventListener("change",showBrush);
+var accInput=document.getElementById("acc");
+var sizeInput=document.getElementById("size");
+sizeInput.addEventListener("pointermove",showBrush);
+showBrush();
+var paintdom=document.getElementById('paint');
+paintdom.addEventListener("click",handlePaint);
+
+function handlePaint()
+{
+  if(paintdom.innerHTML=="DOWN")
+  {
+    foot.down=false;
+    paintdom.innerHTML="UP";
+  }else
+  {
+    foot.down=true;
+    paintdom.innerHTML="DOWN";
+  }
+}
+function showBrush()
+{
+  var canvas=document.getElementById("showSize");
+  var ctx=canvas.getContext("2d");
+  ctx.fillStyle=colorinput.value;
+  var r=sizeInput.value;
+  ctx.clearRect(0,0,50,50);
+  ctx.beginPath();
+  ctx.arc(25,25,r,0,Math.PI*2);
+  ctx.fill();
+}
+//geolocation api js
+
+if (navigator.geolocation)
+{
+    navigator.geolocation.watchPosition(showPosition, errorCallback);
+} else
+{
+    document.getElementById("error").innerHTML="Geolocation is not supported by this browser.";
+}
+
+function errorCallback(error)
+{
+  console.log(error)
+}
+
+function UserQuery()
+{
+  var userLat = 52;
+  var userLong = 5;
+  var zoomLevel=12;
+
+  var _merc_TileLat =  Math.floor((1.0 - Math.Log(Math.tan(degreesToRadians(userLat)) + 1.0 / Math.cos(degreesToRadians(userLat))) / Math.PI)  * (1 << zoomLevel));
+  var _merc_TileLong = Math.floor((userLong + 180.0) / 360.0 * (1 << zoomLevel));
+}
+
+function degreesToRadians(angle)
+{
+  return Math.PI * angle / 180;
+}
+
+function showPosition(position)
+{
+  
+  if(position.coords.accuracy<Number(accInput.value))
+  {
+    console.log(position.coords.accuracy+"<"+Number(accInput.value));
+  }else
+  {
+    foot.x=position.coords.latitude;
+    foot.y=position.coords.longitude;
+    foot.marker.setLatLng([foot.x, foot.y]);
+    map.flyTo([foot.x, foot.y],19);
+  
+    if(foot.down)
+    {
+       current_line.addLatLng([foot.x,foot.y]);
+    }
+
+    console.log("Latitude: " + position.coords.latitude +" Longitude: " + position.coords.longitude+" accuracy: "+position.coords.accuracy);
+  }
+}
+
+</script>
+</body>
+</html>
